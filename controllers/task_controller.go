@@ -149,14 +149,97 @@ func (t *TaskController) Fix(c *gin.Context) {
 	c.JSON(http.StatusOK, "Fix to Queue")
 }
 
-// func (t *TaskController) GetEmployee(c *gin.Context) {
-// 	users := []models.User{}
+func (t *TaskController) Approve(c *gin.Context) {
 
-// 	errDB := t.DB.Select("id,name").Where("role=?", "Employee").Find(&users).Error
-// 	if errDB != nil {
-// 		c.JSON(http.StatusNotFound, gin.H{"error": errDB.Error()})
-// 		return
-// 	}
+	id := c.Param("id")
+	approvedDate := c.PostForm("approvedDate")
 
-// 	c.JSON(http.StatusOK, users)
-// }
+	if err := t.DB.First(&models.Task{}, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data Not Found"})
+		return
+	}
+
+	errDb := t.DB.Where("id=?", id).Updates(models.Task{
+		Status:      "Approved",
+		ApproveDate: approvedDate,
+	}).Error
+
+	if errDb != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": errDb.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, "Approved")
+}
+
+func (t *TaskController) FindTaskById(c *gin.Context) {
+	task := models.Task{}
+	id := c.Param("id")
+
+	if err := t.DB.First(&models.Task{}, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Data Not Found"})
+		return
+	}
+
+	errDB := t.DB.Preload("User").Find(&task, id).Error
+	if errDB != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": errDB.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, task)
+}
+
+func (t *TaskController) NeedToBeReview(c *gin.Context) {
+	tasks := []models.Task{}
+
+	errDB := t.DB.Preload("User").Where("status=?", "Review").Order("submit_date ASC").Limit(2).Find(&tasks).Error
+	if errDB != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": errDB.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, tasks)
+}
+
+func (t *TaskController) ProgressTask(c *gin.Context) {
+	tasks := []models.Task{}
+	userId := c.Param("userId")
+
+	errDB := t.DB.Where("(status !=? AND user_id=?) OR (revision !=? AND user_id=?)", "Queue", userId, 0, userId).Order("updated_at ASC").Limit(5).Find(&tasks).Error
+	if errDB != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": errDB.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, tasks)
+}
+
+func (t *TaskController) Statistic(c *gin.Context) {
+	userId := c.Param("userId")
+
+	stat := []map[string]interface{}{}
+
+	errDB := t.DB.Model(models.Task{}).Select("status,count(status) as total").Where(
+		"user_id=?", userId).Group("status").Find(&stat).Error
+	if errDB != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": errDB.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, stat)
+}
+
+func (t *TaskController) FindByUserAndStatus(c *gin.Context) {
+	tasks := []models.Task{}
+	userId := c.Param("userId")
+	status := c.Param("status")
+
+	errDB := t.DB.Where("user_id=? AND status=?", userId, status).Find(&tasks).Error
+	if errDB != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": errDB.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, tasks)
+}
