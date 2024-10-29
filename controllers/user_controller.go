@@ -68,7 +68,7 @@ func (u *UserController) CreateAccount(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusCreated, user)
 }
 
 func (u *UserController) Delete(c *gin.Context) {
