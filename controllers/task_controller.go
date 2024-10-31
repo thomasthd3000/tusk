@@ -28,7 +28,7 @@ func (t *TaskController) CreateTask(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, task)
+	c.JSON(http.StatusCreated, task)
 }
 
 func (t *TaskController) Delete(c *gin.Context) {
